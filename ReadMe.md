@@ -1,72 +1,41 @@
-MyScheduler: A C# Console App for Planning Tasks Around Your Fixed Schedule
-MyScheduler
+# MyScheduler: A C# Console App for Planning Tasks Around Your Fixed Schedule
 
-A C# Console Application that allows users to efficiently manage their time using fixed schedules and flexible tasks. This application will calculate your free time and automatically assign your tasks depending on their priority and deadlines.
+## 📝 Project Description
+MyScheduler is a C# console application that helps students and workers manage their time. It allows users to input their fixed schedules (like classes and sleep) and flexible tasks (like homework). The system automatically calculates the user's free time and slots the tasks into those gaps.
 
-Members:
+## 🎯 Objectives
+* Calculate free time by subtracting fixed schedules from a 24-hour day.
+* Automatically schedule flexible tasks based on priority (High to Low) and deadlines.
+* Save and load user data locally so information is not lost when the app closes.
+* Display a weekly and daily calendar view.
 
-Cataring, Brent Aldrich V.
+## 👨‍💻 Group Members
+* Cataring, Brent Aldrich V.
+* Aljama, Nikyle Nate
+* Hernandez, Charles Benedict
 
-Aljama, Nikyle Nate
+## 💻 Programming Language Used
+* **C#** (.NET SDK) 
+* (No databases or external libraries were used).
 
-Hernandez, Charles Benedict
+## ✨ System Features
+* **Add Fixed Schedules:** Input classes, shifts, or sleep. Supports overnight schedules and prevents overlapping times.
+* **Add Activities:** Input flexible tasks with deadlines, daily hours required, and priority levels.
+* **Auto-Scheduling:** Automatically places tasks in the earliest available free time.
+* **Deadline Report:** Shows exactly which days and how many hours a task failed to schedule.
+* **File I/O (Auto-Save):** Automatically saves and loads data using local text files.
+* **Safe Exit:** Prevents accidental closing (Ctrl+C). The app only exits when you choose `[0] Exit`.
+* **Auto-Date:** Automatically detects the computer's current system date.
 
-Objectives:
+## 🚀 Instructions on How to Compile and Run
 
-To record both scheduled and flexible tasks inside one console application.
+**Requirements:**
+* A computer with [.NET SDK](https://dotnet.microsoft.com/download) installed.
 
-Calculate free time during a 24-Hour schedule including overnight.
-
-Automatically schedule tasks depending on its priority (High/Medium/Low) and deadlines
-
-Display missed tasks in a report.
-
-Display your schedule through a weekly/daily calendar.
-
-Language Used:
-
-C# (.NET Console Application)
-
-Features:
-
-Add Schedule
-
-This allows users to add a fixed task like classes or sleeping. No overlapping will occur and can also be used for overnight schedules (e.g. 22:00-06:00).
-
-Manage Schedules
-
-This allows users to view their list of fixed schedules. Users can also delete any errors.
-
-Add Activity
-
-This allows users to add flexible tasks. These tasks can be set to different priority levels, hours per day and deadlines (optional).
-
-Manage Activities
-
-This allows users to view their list of tasks. Users can also mark tasks as Done or delete them.
-
-Auto Scheduler
-
-This will automatically add your pending activities to your free time. Long tasks will be split into smaller chunks so they fit perfectly.
-
-Calendar
-
-This displays your schedule in weekly format. Users can also go to specific days.
-
-Missed Report
-
-If you have missed any tasks this will tell you. This will also show exactly how many hours were missed.
-
-How to Compile and Run
-
-Ensure that .NET SDK is installed on your computer.
-
-Open terminal/command prompt.
-
-Go into your src folder.
-
-Run:
-
+**Steps to Run:**
+1. Open your terminal or command prompt.
+2. Navigate to the folder containing `Program.cs`.
+3. Compile the application by typing:
+dotnet build
+4. Run the application by typing:
 dotnet run
-
-You will be asked to enter the current date (YYYY-MM-DD). Once entered you can enter your schedules/activities via the main menu.
