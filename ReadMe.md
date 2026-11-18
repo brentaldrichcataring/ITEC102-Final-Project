@@ -56,13 +56,9 @@ Steps to Run:
 
 3. Compile the application by typing:
 
-bash
-
 dotnet build
 
 4. Run the application by typing:
-
-bash
 
 dotnet run
 
