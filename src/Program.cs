@@ -1,5 +1,5 @@
 ﻿using System;
-using System.IO; // Used for saving and loading files
+using System.IO;
 
 namespace MyScheduler
 {
@@ -27,7 +27,7 @@ namespace MyScheduler
         static bool[] actDone = new bool[MAX_RECORDS];
         static int actCount = 0;
 
-        // --- PLACEMENT DATA (For the generated calendar) ---
+        // --- PLACEMENT DATA ---
         static int[] placeAct = new int[MAX_PLACEMENTS];
         static int[] placeDay = new int[MAX_PLACEMENTS];
         static int[] placeStart = new int[MAX_PLACEMENTS];
@@ -44,82 +44,94 @@ namespace MyScheduler
         static DateTime baseDate = DateTime.Today;
         static DateTime currentWeekStart = DateTime.Today;
 
-        // --- FILE PATHS FOR SAVING ---
+        // --- FILE PATHS ---
         static string schedFile = "schedules.txt";
         static string actFile = "activities.txt";
 
         static void Main()
         {
-            LoadData(); // Load saved data at startup
+            // Keep the console open: Ctrl+C will NOT close the program.
+            // The program only exits when you choose option [0].
+            Console.CancelKeyPress += (sender, e) => { e.Cancel = true; };
+
+            try
+            {
+                LoadData();
+            }
+            catch (Exception)
+            {
+                // A damaged data file should not close the program.
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("  !! Some saved data could not be read. Starting with what was loaded.");
+                Console.ResetColor();
+                Pause();
+            }
 
             Console.Title = "MyScheduler";
-
-            Console.Clear();
-            Console.WriteLine("============================================================");
-            Console.WriteLine("  MyScheduler - Personal Schedule & Activity Planner");
-            Console.WriteLine("============================================================");
-            Console.WriteLine();
-            
-            // Automatically detect today's real date
-            baseDate = DateTime.Today;
-            
-            // Automatically find the Monday of the current week
-            int dayOfWeek = GetDayNumber(baseDate);
-            currentWeekStart = baseDate.AddDays(-(dayOfWeek - 1));
 
             bool running = true;
             while (running)
             {
-                Console.Clear();
-                Console.WriteLine("============================================================");
-                Console.WriteLine("  MyScheduler - Personal Schedule & Activity Planner");
-                Console.WriteLine("============================================================");
-                Console.WriteLine();
-                Console.WriteLine("  [1]  Add Fixed Schedule");
-                Console.WriteLine("  [2]  View Fixed Schedules");
-                Console.WriteLine("  [3]  Add Activity");
-                Console.WriteLine("  [4]  View Activities");
-                Console.WriteLine("  [5]  View Calendar");
-                Console.WriteLine("  [0]  Exit");
-                Console.WriteLine();
-                Console.WriteLine("------------------------------------------------------------");
-
-                int doneCount = 0;
-                for (int i = 0; i < actCount; i++)
-                {
-                    if (actDone[i]) doneCount++;
-                }
-
-                Console.WriteLine("  Schedules: " + schedCount + "/" + MAX_RECORDS + "   Activities: " + actCount + " (" + (actCount - doneCount) + " pending, " + doneCount + " done)");
-                Console.WriteLine("------------------------------------------------------------");
-                Console.Write("  Select option [0-5]: ");
-
-                string choice = Console.ReadLine();
-                if (choice == null) choice = ""; 
-                choice = choice.Trim();
-
-                // Try-Catch prevents the app from closing if the user types a wrong key
                 try
                 {
+                    Console.Clear();
+
+                    // UI Header
+                    Console.ForegroundColor = ConsoleColor.Cyan;
+                    Console.WriteLine("============================================================");
+                    Console.WriteLine("            MyScheduler - Activity Planner");
+                    Console.WriteLine("============================================================");
+                    Console.ResetColor();
+                    Console.WriteLine();
+
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("  [1]  Add Fixed Schedule");
+                    Console.WriteLine("  [2]  View Fixed Schedules");
+                    Console.WriteLine("  [3]  Add Activity");
+                    Console.WriteLine("  [4]  View Activities");
+                    Console.WriteLine("  [5]  View Calendar");
+                    Console.WriteLine("  [0]  Exit");
+                    Console.ResetColor();
+                    Console.WriteLine();
+                    Console.WriteLine("------------------------------------------------------------");
+
+                    int doneCount = 0;
+                    for (int i = 0; i < actCount; i++)
+                    {
+                        if (actDone[i]) doneCount++;
+                    }
+
+                    Console.WriteLine("  Schedules: " + schedCount + "/" + MAX_RECORDS + "   Activities: " + actCount + " (" + (actCount - doneCount) + " pending, " + doneCount + " done)");
+                    Console.WriteLine("------------------------------------------------------------");
+                    Console.Write("  Select option [0-5]: ");
+
+                    string choice = Console.ReadLine();
+                    if (choice == null) choice = "";
+                    choice = choice.Trim();
+
                     if (choice == "1") AddFixedSchedule();
                     else if (choice == "2") ViewFixedSchedules();
                     else if (choice == "3") AddActivity();
                     else if (choice == "4") ViewActivities();
                     else if (choice == "5") ViewCalendar();
-                    else if (choice == "0") 
+                    else if (choice == "0")
                     {
-                        SaveData(); // Save before exiting
+                        SaveData();
                         running = false;
                     }
                     else
                     {
+                        Console.ForegroundColor = ConsoleColor.Red;
                         Console.WriteLine("  !! Invalid option. Please choose 0-5.");
+                        Console.ResetColor();
                         Pause();
                     }
                 }
                 catch (Exception)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("  !! An unexpected error occurred. Returning to main menu.");
+                    Console.ResetColor();
                     Pause();
                 }
             }
@@ -132,7 +144,7 @@ namespace MyScheduler
         }
 
         // =========================================================
-        //  SAVE & LOAD METHODS
+        //  SAVE & LOAD
         // =========================================================
         static void SaveData()
         {
@@ -213,8 +225,8 @@ namespace MyScheduler
 
         static int GetDayNumber(DateTime date)
         {
-            int d = (int)date.DayOfWeek; // 0=Sunday
-            if (d == 0) d = 7; // Make Sunday 7
+            int d = (int)date.DayOfWeek;
+            if (d == 0) d = 7;
             return d;
         }
 
@@ -225,26 +237,100 @@ namespace MyScheduler
             return h.ToString("00") + ":" + m.ToString("00");
         }
 
-        static bool IsValidTime(string timeStr)
+        // Time Parser
+        static bool TryParseTime(string input, out int totalMinutes)
         {
-            if (timeStr == null || timeStr.Length != 5) return false;
-            if (timeStr[2] != ':') return false;
-            
-            int h, m;
-            if (!int.TryParse(timeStr.Substring(0, 2), out h)) return false;
-            if (!int.TryParse(timeStr.Substring(3, 2), out m)) return false;
-            
+            totalMinutes = 0;
+            if (string.IsNullOrWhiteSpace(input)) return false;
+
+            input = input.Trim().ToUpper().Replace(" ", "");
+
+            bool isPM = input.EndsWith("PM");
+            bool isAM = input.EndsWith("AM");
+
+            if (isPM || isAM) { input = input.Substring(0, input.Length - 2); }
+
+            int h, m = 0;
+            if (input.Contains(":"))
+            {
+                string[] parts = input.Split(':');
+                if (parts.Length != 2) return false;
+                if (!int.TryParse(parts[0], out h)) return false;
+                if (!int.TryParse(parts[1], out m)) return false;
+            }
+            else
+            {
+                if (!int.TryParse(input, out h)) return false;
+            }
+
+            if (h < 0 || m < 0 || m > 59) return false;
+
+            if (isPM && h < 12) h += 12;
+            if (isAM && h == 12) h = 0;
             if (h < 0 || h > 23) return false;
-            if (m < 0 || m > 59) return false;
-            
+
+            totalMinutes = (h * 60) + m;
             return true;
         }
 
-        static int TimeToInt(string timeStr)
+        // Flexible Duration Parser (Accepts 1.5, 1:30, 1h 30m)
+        static bool TryParseDuration(string input, out double totalHours)
         {
-            int h = int.Parse(timeStr.Substring(0, 2));
-            int m = int.Parse(timeStr.Substring(3, 2));
-            return (h * 60) + m;
+            totalHours = 0;
+            if (string.IsNullOrWhiteSpace(input)) return false;
+            input = input.Trim().ToLower();
+
+            // 1. Try decimal format (e.g., "1.5")
+            if (double.TryParse(input, out double d)) { totalHours = d; return true; }
+
+            // 2. Try H:MM format (e.g., "1:30")
+            if (input.Contains(":"))
+            {
+                string[] parts = input.Split(':');
+                if (parts.Length == 2 && double.TryParse(parts[0], out double h) && double.TryParse(parts[1], out double m))
+                {
+                    totalHours = h + (m / 60.0);
+                    return true;
+                }
+            }
+
+            // 3. Try word format (e.g., "1h 30m", "1 hour 30 mins")
+            input = input.Replace("hours", "").Replace("hour", "").Replace("hrs", "").Replace("hr", "")
+                         .Replace("minutes", "").Replace("minute", "").Replace("mins", "").Replace("min", "");
+
+            double h_val = 0, m_val = 0;
+            bool hasH = false, hasM = false;
+
+            if (input.Contains("h"))
+            {
+                string[] parts = input.Split('h');
+                if (double.TryParse(parts[0].Trim(), out h_val)) hasH = true;
+                input = parts.Length > 1 ? parts[1] : "";
+            }
+
+            if (input.Contains("m"))
+            {
+                string[] parts = input.Split('m');
+                if (double.TryParse(parts[0].Trim(), out m_val)) hasM = true;
+            }
+
+            if (hasH || hasM)
+            {
+                totalHours = h_val + (m_val / 60.0);
+                return true;
+            }
+
+            return false;
+        }
+
+        static string FormatDuration(double totalHours)
+        {
+            int h = (int)totalHours;
+            int m = (int)Math.Round((totalHours - h) * 60);
+
+            if (h > 0 && m > 0) return h + "h " + m + "m";
+            if (h > 0) return h + "h";
+            return m + "m";
         }
 
         static string GetCode(string name)
@@ -266,18 +352,14 @@ namespace MyScheduler
         // =========================================================
         static void AddFixedSchedule()
         {
-            if (schedCount >= MAX_RECORDS)
-            {
-                Console.Clear();
-                Console.WriteLine("  !! Schedule list is full.");
-                Pause();
-                return;
-            }
+            if (schedCount >= MAX_RECORDS) { Console.Clear(); Console.WriteLine("  !! Schedule list is full."); Pause(); return; }
 
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("============================================================");
             Console.WriteLine("  ADD FIXED SCHEDULE  (1 of 3)");
             Console.WriteLine("============================================================");
+            Console.ResetColor();
             Console.WriteLine();
 
             string name = "";
@@ -287,14 +369,18 @@ namespace MyScheduler
                 name = Console.ReadLine();
                 if (name != null && name.Trim().ToUpper() == "B") return;
                 if (name != null && name.Trim() != "") break;
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("  !! Name cannot be empty.");
+                Console.ResetColor();
             }
             name = name.Trim();
 
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("============================================================");
             Console.WriteLine("  ADD FIXED SCHEDULE  (2 of 3)");
             Console.WriteLine("============================================================");
+            Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("  Name: " + name);
             Console.WriteLine();
@@ -309,12 +395,8 @@ namespace MyScheduler
                 Console.Write("  Enter days (e.g. 1,3,5) (or 'B' to back): ");
                 string input = Console.ReadLine();
                 if (input != null && input.Trim().ToUpper() == "B") return;
-                
-                if (input == null || input.Trim() == "")
-                {
-                    Console.WriteLine("  !! Please select at least one day.");
-                    continue;
-                }
+
+                if (input == null || input.Trim() == "") { Console.WriteLine("  !! Please select at least one day."); continue; }
 
                 selectedDays = new int[7];
                 dayCount = 0;
@@ -330,20 +412,11 @@ namespace MyScheduler
                         error = true;
                         break;
                     }
-                    
+
                     bool duplicate = false;
-                    for (int j = 0; j < dayCount; j++)
-                    {
-                        if (selectedDays[j] == d) duplicate = true;
-                    }
-                    
-                    if (duplicate)
-                    {
-                        Console.WriteLine("  !! Day " + d + " entered twice.");
-                        error = true;
-                        break;
-                    }
-                    
+                    for (int j = 0; j < dayCount; j++) { if (selectedDays[j] == d) duplicate = true; }
+                    if (duplicate) { Console.WriteLine("  !! Day " + d + " entered twice."); error = true; break; }
+
                     selectedDays[dayCount] = d;
                     dayCount++;
                 }
@@ -365,22 +438,21 @@ namespace MyScheduler
             }
 
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("============================================================");
             Console.WriteLine("  ADD FIXED SCHEDULE  (3 of 3)");
             Console.WriteLine("============================================================");
+            Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("  Name: " + name);
             Console.Write("  Days: ");
-            for (int i = 0; i < dayCount; i++)
-            {
-                Console.Write(GetDayName(selectedDays[i]) + " ");
-            }
+            for (int i = 0; i < dayCount; i++) { Console.Write(GetDayName(selectedDays[i]) + " "); }
             Console.WriteLine();
             Console.WriteLine();
             Console.WriteLine("  [A] Same time for all days");
             Console.WriteLine("  [E] Different time for each day");
             Console.Write("  Choice [A/E] (or 'B' to back): ");
-            
+
             string mode = Console.ReadLine();
             if (mode != null && mode.Trim().ToUpper() == "B") return;
             if (mode == null) mode = "A";
@@ -392,51 +464,44 @@ namespace MyScheduler
 
             if (mode == "A")
             {
-                string startIn = "";
+                int st, en;
                 while (true)
                 {
-                    Console.Write("  Start time HH:MM (or 'B' to back): ");
-                    startIn = Console.ReadLine();
+                    Console.Write("  Start time (e.g., 8 AM, 1:00 PM, 13:00) (or 'B' to back): ");
+                    string startIn = Console.ReadLine();
                     if (startIn != null && startIn.Trim().ToUpper() == "B") return;
-                    if (IsValidTime(startIn)) break;
-                    Console.WriteLine("  !! Invalid time. Use HH:MM.");
+                    if (TryParseTime(startIn, out st)) break;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  !! Invalid format. Try 8 AM or 13:00.");
+                    Console.ResetColor();
                 }
 
-                string endIn = "";
                 while (true)
                 {
-                    Console.Write("  End time HH:MM (or 'B' to back): ");
-                    endIn = Console.ReadLine();
+                    Console.Write("  End time (e.g., 10 AM, 3:00 PM, 15:00) (or 'B' to back): ");
+                    string endIn = Console.ReadLine();
                     if (endIn != null && endIn.Trim().ToUpper() == "B") return;
-                    if (IsValidTime(endIn)) break;
-                    Console.WriteLine("  !! Invalid time. Use HH:MM.");
+                    if (TryParseTime(endIn, out en)) break;
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  !! Invalid format.");
+                    Console.ResetColor();
                 }
 
-                int st = TimeToInt(startIn);
-                int en = TimeToInt(endIn);
-
-                if (st == en)
-                {
-                    Console.WriteLine("  !! Start and end must differ.");
-                    Pause();
-                    return;
-                }
+                if (st == en) { Console.WriteLine("  !! Start and end must differ."); Pause(); return; }
 
                 if (en < st)
                 {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine();
                     Console.WriteLine("  !! Note: End time is earlier than start time.");
                     Console.WriteLine("     This is an OVERNIGHT schedule.");
+                    Console.ResetColor();
                     Console.Write("  [C] Confirm   [B] Back: ");
                     string conf = Console.ReadLine();
                     if (conf == null || conf.Trim().ToUpper() != "C") return;
                 }
 
-                for (int i = 0; i < dayCount; i++)
-                {
-                    startTimes[i] = st;
-                    endTimes[i] = en;
-                }
+                for (int i = 0; i < dayCount; i++) { startTimes[i] = st; endTimes[i] = en; }
             }
             else
             {
@@ -444,43 +509,38 @@ namespace MyScheduler
                 {
                     Console.WriteLine();
                     Console.WriteLine("  " + GetDayName(selectedDays[i]));
-                    
-                    string startIn = "";
+
+                    int st, en;
                     while (true)
                     {
-                        Console.Write("    Start time HH:MM (or 'B' to back): ");
-                        startIn = Console.ReadLine();
+                        Console.Write("    Start time (e.g., 8 AM, 1:00 PM) (or 'B' to back): ");
+                        string startIn = Console.ReadLine();
                         if (startIn != null && startIn.Trim().ToUpper() == "B") return;
-                        if (IsValidTime(startIn)) break;
-                        Console.WriteLine("    !! Invalid time.");
+                        if (TryParseTime(startIn, out st)) break;
+                        Console.WriteLine("    !! Invalid format.");
                     }
 
-                    string endIn = "";
                     while (true)
                     {
-                        Console.Write("    End time HH:MM (or 'B' to back): ");
-                        endIn = Console.ReadLine();
+                        Console.Write("    End time (e.g., 10 AM, 3:00 PM) (or 'B' to back): ");
+                        string endIn = Console.ReadLine();
                         if (endIn != null && endIn.Trim().ToUpper() == "B") return;
-                        if (IsValidTime(endIn)) break;
-                        Console.WriteLine("    !! Invalid time.");
+                        if (TryParseTime(endIn, out en)) break;
+                        Console.WriteLine("    !! Invalid format.");
                     }
 
-                    startTimes[i] = TimeToInt(startIn);
-                    endTimes[i] = TimeToInt(endIn);
-
-                    if (startTimes[i] == endTimes[i])
-                    {
-                        Console.WriteLine("  !! Start and end must differ.");
-                        Pause();
-                        return;
-                    }
+                    if (st == en) { Console.WriteLine("  !! Start and end must differ."); Pause(); return; }
+                    startTimes[i] = st;
+                    endTimes[i] = en;
                 }
             }
 
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("============================================================");
             Console.WriteLine("  PREVIEW");
             Console.WriteLine("============================================================");
+            Console.ResetColor();
             Console.WriteLine();
             Console.WriteLine("  " + name);
             for (int i = 0; i < dayCount; i++)
@@ -492,17 +552,15 @@ namespace MyScheduler
             string saveChoice = Console.ReadLine();
             if (saveChoice == null || saveChoice.Trim().ToUpper() != "S") return;
 
+            // Check overlaps
             for (int i = 0; i < dayCount; i++)
             {
                 for (int j = 0; j < schedCount; j++)
                 {
                     if (schedDay[j] == selectedDays[i])
                     {
-                        int s1 = startTimes[i];
-                        int e1 = endTimes[i];
-                        int s2 = schedStart[j];
-                        int e2 = schedEnd[j];
-
+                        int s1 = startTimes[i], e1 = endTimes[i];
+                        int s2 = schedStart[j], e2 = schedEnd[j];
                         bool overlap = false;
                         if (s1 < e1 && s2 < e2) { if (s1 < e2 && s2 < e1) overlap = true; }
                         else if (s1 > e1 && s2 < e2) { if (s1 < e2 || s2 < e1) overlap = true; }
@@ -511,7 +569,9 @@ namespace MyScheduler
 
                         if (overlap)
                         {
+                            Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine("  !! CONFLICT on " + GetDayName(selectedDays[i]) + " with " + schedName[j]);
+                            Console.ResetColor();
                             Pause();
                             return;
                         }
@@ -528,10 +588,12 @@ namespace MyScheduler
                 schedCount++;
             }
 
-            SaveData(); // Save data after adding
+            SaveData();
 
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine();
             Console.WriteLine("  >> Successfully added " + name);
+            Console.ResetColor();
             Pause();
         }
 
@@ -544,15 +606,14 @@ namespace MyScheduler
             while (viewing)
             {
                 Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("============================================================");
                 Console.WriteLine("  MY FIXED SCHEDULES                          (" + schedCount + " of " + MAX_RECORDS + ")");
                 Console.WriteLine("============================================================");
+                Console.ResetColor();
                 Console.WriteLine();
 
-                if (schedCount == 0)
-                {
-                    Console.WriteLine("  No schedules added yet.");
-                }
+                if (schedCount == 0) { Console.WriteLine("  No schedules added yet."); }
                 else
                 {
                     Console.WriteLine("  #   NAME              DAY    TIME");
@@ -561,17 +622,15 @@ namespace MyScheduler
                     {
                         string overnight = "";
                         if (schedEnd[i] < schedStart[i]) overnight = " (Overnight)";
-                        
                         Console.WriteLine("  " + (i + 1) + ".  " + schedName[i].PadRight(16) + "  " + GetDayName(schedDay[i]) + "    " + TimeToString(schedStart[i]) + " - " + TimeToString(schedEnd[i]) + overnight);
                     }
                 }
-                
+
                 Console.WriteLine();
                 Console.WriteLine("  [D] Delete a schedule");
                 Console.WriteLine("  [B] Back to menu");
                 Console.Write("  Choice: ");
                 string choice = Console.ReadLine();
-                
                 if (choice == null) choice = "";
                 choice = choice.Trim().ToUpper();
 
@@ -594,8 +653,10 @@ namespace MyScheduler
                             schedEnd[i] = schedEnd[i + 1];
                         }
                         schedCount--;
-                        SaveData(); // Save data after deleting
+                        SaveData();
+                        Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("  >> Deleted successfully.");
+                        Console.ResetColor();
                     }
                     else { Console.WriteLine("  !! Invalid number."); }
                     Pause();
@@ -611,9 +672,11 @@ namespace MyScheduler
             if (actCount >= MAX_RECORDS) { Console.Clear(); Console.WriteLine("  !! Activity list is full."); Pause(); return; }
 
             Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("============================================================");
             Console.WriteLine("  ADD ACTIVITY");
             Console.WriteLine("============================================================");
+            Console.ResetColor();
             Console.WriteLine();
 
             string name = "";
@@ -634,31 +697,24 @@ namespace MyScheduler
             Console.WriteLine("  Deadline (Press ENTER to skip)");
             Console.Write("    Date YYYY-MM-DD (or 'B' to back): ");
             string dateStr = Console.ReadLine();
-            
             if (dateStr != null && dateStr.Trim().ToUpper() == "B") return;
 
             if (dateStr != null && dateStr.Trim() != "")
             {
                 DateTime d;
-                if (!DateTime.TryParse(dateStr, out d))
-                {
-                    Console.WriteLine("  !! Invalid date format. Canceled.");
-                    Pause();
-                    return;
-                }
+                if (!DateTime.TryParse(dateStr, out d)) { Console.WriteLine("  !! Invalid date format. Canceled."); Pause(); return; }
 
-                string timeStr = "";
+                int timeMins;
                 while (true)
                 {
-                    Console.Write("    Time HH:MM (or 'B' to back): ");
-                    timeStr = Console.ReadLine();
+                    Console.Write("    Time (e.g., 11:59 PM, 23:59) (or 'B' to back): ");
+                    string timeStr = Console.ReadLine();
                     if (timeStr != null && timeStr.Trim().ToUpper() == "B") return;
-                    if (IsValidTime(timeStr)) break;
+                    if (TryParseTime(timeStr, out timeMins)) break;
                     Console.WriteLine("  !! Invalid time.");
                 }
 
-                int mins = TimeToInt(timeStr);
-                deadline = d.Date.AddMinutes(mins);
+                deadline = d.Date.AddMinutes(timeMins);
                 hasDeadline = true;
             }
 
@@ -670,7 +726,6 @@ namespace MyScheduler
             string dayChoice = Console.ReadLine();
             if (dayChoice == null) dayChoice = "";
             dayChoice = dayChoice.Trim().ToUpper();
-
             if (dayChoice == "B") return;
 
             bool[] days = new bool[8];
@@ -685,7 +740,6 @@ namespace MyScheduler
             {
                 Console.Write("  Enter days (e.g. 1,3,5) (or 'B' to back): ");
                 string dayStr = Console.ReadLine();
-                
                 if (dayStr != null && dayStr.Trim().ToUpper() == "B") return;
                 if (dayStr == null || dayStr.Trim() == "") { Console.WriteLine("  !! No days selected. Canceled."); Pause(); return; }
 
@@ -693,32 +747,26 @@ namespace MyScheduler
                 for (int i = 0; i < parts.Length; i++)
                 {
                     int d;
-                    if (int.TryParse(parts[i].Trim(), out d) && d >= 1 && d <= 7)
-                    {
-                        days[d] = true;
-                        hasDays = true;
-                    }
+                    if (int.TryParse(parts[i].Trim(), out d) && d >= 1 && d <= 7) { days[d] = true; hasDays = true; }
                 }
             }
-            
+
             if (!hasDays) { Console.WriteLine("  !! No days selected. Canceled."); Pause(); return; }
 
             double hrs = 0;
             while (true)
             {
-                Console.Write("  Hours per day (or 'B' to back): ");
+                Console.Write("  Duration per day (e.g., 1.5, 1:30, 1h 30m) (or 'B' to back): ");
                 string hrStr = Console.ReadLine();
                 if (hrStr != null && hrStr.Trim().ToUpper() == "B") return;
-                
-                if (double.TryParse(hrStr, out hrs))
+
+                if (TryParseDuration(hrStr, out hrs))
                 {
-                    if (hrs >= 0.5 && hrs <= 8)
-                    {
-                        double doubled = hrs * 2;
-                        if (doubled == (int)doubled) break;
-                    }
+                    if (hrs >= 0.5 && hrs <= 8) break;
                 }
-                Console.WriteLine("  !! Must be 0.5 to 8, in 0.5 steps.");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("  !! Must be between 30 mins and 8 hours.");
+                Console.ResetColor();
             }
 
             Console.WriteLine();
@@ -727,7 +775,7 @@ namespace MyScheduler
             Console.Write("  Choice [1/2/3] (or 'B' to back): ");
             string pStr = Console.ReadLine();
             if (pStr != null && pStr.Trim().ToUpper() == "B") return;
-            
+
             int prio = 2;
             if (pStr != null)
             {
@@ -741,7 +789,7 @@ namespace MyScheduler
             Console.WriteLine("  Summary: " + name);
             if (hasDeadline) Console.WriteLine("  Due: " + deadline.ToString("MMM dd, yyyy HH:mm"));
             else Console.WriteLine("  Due: No deadline (Flexible)");
-            Console.WriteLine("  Hours/day: " + hrs);
+            Console.WriteLine("  Duration/day: " + FormatDuration(hrs));
             Console.WriteLine("  Priority: " + GetPriorityName(prio));
             Console.WriteLine();
             Console.Write("  [S] Save   [B] Back: ");
@@ -757,10 +805,12 @@ namespace MyScheduler
             actDone[actCount] = false;
             actCount++;
 
-            SaveData(); // Save data after adding activity
+            SaveData();
 
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine();
             Console.WriteLine("  >> Successfully added " + name);
+            Console.ResetColor();
             Pause();
         }
 
@@ -773,28 +823,25 @@ namespace MyScheduler
             while (viewing)
             {
                 Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("============================================================");
                 Console.WriteLine("  MY ACTIVITIES                               (" + actCount + " of " + MAX_RECORDS + ")");
                 Console.WriteLine("============================================================");
+                Console.ResetColor();
                 Console.WriteLine();
 
-                if (actCount == 0)
-                {
-                    Console.WriteLine("  No activities added yet.");
-                }
+                if (actCount == 0) { Console.WriteLine("  No activities added yet."); }
                 else
                 {
-                    Console.WriteLine("  #   DONE   PRIO   ACTIVITY             HOURS/DAY");
+                    Console.WriteLine("  #   DONE   PRIO   ACTIVITY             DURATION");
                     Console.WriteLine("  --  -----  -----  -------------------  ---------");
                     for (int i = 0; i < actCount; i++)
                     {
-                        string mark = "[ ]";
-                        if (actDone[i]) mark = "[x]";
-                        
-                        Console.WriteLine("  " + (i + 1) + ".  " + mark + "    " + GetPriorityName(actPriority[i]) + "   " + actName[i].PadRight(20) + " " + actHours[i]);
+                        string mark = actDone[i] ? "[x]" : "[ ]";
+                        Console.WriteLine("  " + (i + 1) + ".  " + mark + "    " + GetPriorityName(actPriority[i]) + "   " + actName[i].PadRight(20) + " " + FormatDuration(actHours[i]));
                     }
                 }
-                
+
                 Console.WriteLine();
                 Console.WriteLine("  [T] Toggle Done   [D] Delete   [B] Back");
                 Console.Write("  Choice: ");
@@ -814,8 +861,10 @@ namespace MyScheduler
                     if (int.TryParse(numStr, out num) && num >= 1 && num <= actCount)
                     {
                         actDone[num - 1] = !actDone[num - 1];
-                        SaveData(); // Save data after toggle
+                        SaveData();
+                        Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("  >> Updated status.");
+                        Console.ResetColor();
                     }
                     else Console.WriteLine("  !! Invalid number.");
                     Pause();
@@ -841,8 +890,10 @@ namespace MyScheduler
                             actDone[i] = actDone[i + 1];
                         }
                         actCount--;
-                        SaveData(); // Save data after delete
+                        SaveData();
+                        Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine("  >> Deleted successfully.");
+                        Console.ResetColor();
                     }
                     else Console.WriteLine("  !! Invalid number.");
                     Pause();
@@ -851,9 +902,8 @@ namespace MyScheduler
         }
 
         // =========================================================
-        //  FEATURE 5: VIEW CALENDAR (Logic & Display)
+        //  FEATURE 5: VIEW CALENDAR
         // =========================================================
-        
         static void RemoveBusyTime(int start, int end)
         {
             int[] newStart = new int[MAX_BLOCKS];
@@ -879,11 +929,7 @@ namespace MyScheduler
             }
 
             freeCount = newCount;
-            for (int i = 0; i < freeCount; i++)
-            {
-                freeStart[i] = newStart[i];
-                freeEnd[i] = newEnd[i];
-            }
+            for (int i = 0; i < freeCount; i++) { freeStart[i] = newStart[i]; freeEnd[i] = newEnd[i]; }
         }
 
         static void ComputeFreeTime(int dayOfWeek)
@@ -920,14 +966,10 @@ namespace MyScheduler
 
             int[] order = new int[MAX_RECORDS];
             int orderCount = 0;
-            
+
             for (int i = 0; i < actCount; i++)
             {
-                if (!actDone[i])
-                {
-                    order[orderCount] = i;
-                    orderCount++;
-                }
+                if (!actDone[i]) { order[orderCount] = i; orderCount++; }
             }
 
             for (int i = 0; i < orderCount - 1; i++)
@@ -1001,33 +1043,90 @@ namespace MyScheduler
             }
         }
 
+        // Shows pending activities that have a deadline, with days remaining.
+        // Hidden completely when there is nothing to show.
+        static void ShowDeadlineList()
+        {
+            // Collect pending activities that have a deadline
+            int[] list = new int[MAX_RECORDS];
+            int count = 0;
+            for (int i = 0; i < actCount; i++)
+            {
+                if (!actDone[i] && actHasDeadline[i])
+                {
+                    list[count] = i;
+                    count++;
+                }
+            }
+
+            // Nothing to show -> hide the whole section
+            if (count == 0) return;
+
+            // Sort by earliest deadline first
+            for (int i = 0; i < count - 1; i++)
+            {
+                for (int j = 0; j < count - i - 1; j++)
+                {
+                    if (actDeadline[list[j]] > actDeadline[list[j + 1]])
+                    {
+                        int temp = list[j];
+                        list[j] = list[j + 1];
+                        list[j + 1] = temp;
+                    }
+                }
+            }
+
+            Console.WriteLine("============================================================");
+            Console.WriteLine("  DEADLINES");
+            Console.WriteLine("============================================================");
+            Console.WriteLine();
+
+            for (int k = 0; k < count; k++)
+            {
+                int ai = list[k];
+                int daysLeft = (int)(actDeadline[ai].Date - baseDate.Date).TotalDays;
+
+                string status;
+                if (daysLeft < 0) { status = "OVERDUE by " + (-daysLeft) + (daysLeft == -1 ? " day" : " days"); Console.ForegroundColor = ConsoleColor.Red; }
+                else if (daysLeft == 0) { status = "DUE TODAY"; Console.ForegroundColor = ConsoleColor.Red; }
+                else if (daysLeft <= 3) { status = daysLeft + (daysLeft == 1 ? " day left" : " days left"); Console.ForegroundColor = ConsoleColor.Yellow; }
+                else { status = daysLeft + " days left"; Console.ForegroundColor = ConsoleColor.Green; }
+
+                Console.WriteLine("  " + (k + 1) + ". " + actName[ai].PadRight(20) + " " + actDeadline[ai].ToString("MMM dd, yyyy HH:mm") + "   " + status);
+                Console.ResetColor();
+            }
+            Console.WriteLine();
+        }
+
         static void ViewCalendar()
         {
-            int weekOffset = 0; 
-            
+            int weekOffset = 0;
             bool viewing = true;
             while (viewing)
             {
+                // Refresh "today" so it stays correct if the program was left open past midnight
+                baseDate = DateTime.Today;
+
                 DateTime displayStart = currentWeekStart.AddDays(weekOffset * 7);
                 GeneratePlan(displayStart);
 
                 Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("============================================================");
                 Console.WriteLine("  MY CALENDAR   " + displayStart.ToString("MMM dd, yyyy") + " - " + displayStart.AddDays(6).ToString("MMM dd, yyyy"));
                 Console.WriteLine("============================================================");
+                Console.ResetColor();
                 Console.WriteLine();
                 Console.WriteLine("  Priority: High first, then earliest deadline.");
                 Console.WriteLine("  Window: 00:00 - 24:00");
                 Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("  [A] <- Prev Week    [D] -> Next Week    [B] Back to menu");
+                Console.ResetColor();
                 Console.WriteLine("============================================================");
-                
+
                 Console.Write("        ");
-                for (int d = 0; d < 7; d++)
-                {
-                    DateTime date = displayStart.AddDays(d);
-                    Console.Write(GetDayName(GetDayNumber(date)).PadRight(7));
-                }
+                for (int d = 0; d < 7; d++) { Console.Write(GetDayName(GetDayNumber(displayStart.AddDays(d))).PadRight(7)); }
                 Console.WriteLine();
 
                 Console.Write("        ");
@@ -1035,7 +1134,7 @@ namespace MyScheduler
                 {
                     DateTime date = displayStart.AddDays(d);
                     string dateStr = date.ToString("MM/dd");
-                    if (date.Date == baseDate.Date) dateStr = "(Today)";
+                    if (date.Date == baseDate.Date) { Console.ForegroundColor = ConsoleColor.Green; dateStr = "(Today)"; Console.ResetColor(); }
                     Console.Write(dateStr.PadRight(7));
                 }
                 Console.WriteLine();
@@ -1044,20 +1143,12 @@ namespace MyScheduler
                 {
                     int minute = h * 60;
                     Console.Write(" " + h.ToString("00") + ":00  ");
-                    
-                    for (int d = 0; d < 7; d++)
-                    {
-                        string cellText = GetCellText(d, displayStart.AddDays(d), minute);
-                        Console.Write(cellText.PadRight(7));
-                    }
+                    for (int d = 0; d < 7; d++) { Console.Write(GetCellText(d, displayStart.AddDays(d), minute).PadRight(7)); }
                     Console.WriteLine();
                 }
                 Console.WriteLine();
 
-                bool hasAnything = false;
-                for (int i = 0; i < schedCount; i++) hasAnything = true;
-                for (int i = 0; i < actCount; i++) hasAnything = true;
-
+                bool hasAnything = (schedCount > 0 || actCount > 0);
                 if (hasAnything)
                 {
                     Console.WriteLine("  LEGEND");
@@ -1081,8 +1172,10 @@ namespace MyScheduler
                     Console.WriteLine();
                 }
 
+                ShowDeadlineList();
+
                 Console.WriteLine("============================================================");
-                
+
                 int missedCount = 0;
                 string reportText = "";
 
@@ -1090,8 +1183,7 @@ namespace MyScheduler
                 {
                     if (actDone[i]) continue;
 
-                    int totalDays = 0;
-                    int placedDays = 0;
+                    int totalDays = 0, placedDays = 0;
                     double totalMissingHours = 0;
                     string missedDaysDetails = "";
 
@@ -1110,7 +1202,7 @@ namespace MyScheduler
                             double missingToday = actHours[i] - placedHours[i, d];
                             totalMissingHours += missingToday;
                             if (missedDaysDetails != "") missedDaysDetails += ", ";
-                            missedDaysDetails += GetDayName(dow) + " (" + missingToday.ToString("0.0") + " hrs short)";
+                            missedDaysDetails += GetDayName(dow) + " (" + FormatDuration(missingToday) + " short)";
                         }
                     }
 
@@ -1119,28 +1211,34 @@ namespace MyScheduler
                         missedCount++;
                         reportText = reportText + "  " + missedCount + ". " + actName[i] + " [" + GetPriorityName(actPriority[i]) + "]\n";
                         reportText = reportText + "     Missed: " + missedDaysDetails + "\n";
-                        reportText = reportText + "     Total Short: " + totalMissingHours.ToString("0.0") + " hrs (" + placedDays + " of " + totalDays + " days placed)\n\n";
+                        reportText = reportText + "     Total Short: " + FormatDuration(totalMissingHours) + " (" + placedDays + " of " + totalDays + " days placed)\n\n";
                     }
                 }
 
                 if (missedCount > 0)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("  NOT FULLY SCHEDULED");
                     Console.WriteLine("============================================================");
+                    Console.ResetColor();
                     Console.WriteLine();
                     Console.Write(reportText);
                     Console.WriteLine("============================================================");
                 }
                 else
                 {
+                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("  All pending activities were fully scheduled.");
+                    Console.ResetColor();
                     Console.WriteLine("============================================================");
                 }
 
                 Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("  [A] Prev Week   [D] Next Week   [1] Day view   [B] Back");
+                Console.ResetColor();
                 Console.Write("  Choice: ");
-                
+
                 string choice = Console.ReadLine();
                 if (choice == null) choice = "";
                 choice = choice.Trim().ToUpper();
@@ -1160,7 +1258,6 @@ namespace MyScheduler
                 {
                     Console.Write("  Enter exact Date (YYYY-MM-DD) (or 'B' to back): ");
                     string dayStr = Console.ReadLine();
-                    
                     if (dayStr != null && dayStr.Trim().ToUpper() == "B") continue;
 
                     DateTime targetDate;
@@ -1168,15 +1265,10 @@ namespace MyScheduler
                     {
                         int targetDow = GetDayNumber(targetDate);
                         DateTime targetWeekStart = targetDate.AddDays(-(targetDow - 1));
-                        
                         GeneratePlan(targetWeekStart);
                         ViewDay(targetWeekStart, targetDow - 1);
                     }
-                    else
-                    {
-                        Console.WriteLine("  !! Invalid date format. Please use YYYY-MM-DD.");
-                        Pause();
-                    }
+                    else { Console.WriteLine("  !! Invalid date format. Please use YYYY-MM-DD."); Pause(); }
                 }
             }
         }
@@ -1218,9 +1310,11 @@ namespace MyScheduler
                 int dow = GetDayNumber(date);
 
                 Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("============================================================");
                 Console.WriteLine("  " + GetDayName(dow) + " - " + date.ToString("MMM dd, yyyy"));
                 Console.WriteLine("============================================================");
+                Console.ResetColor();
                 Console.WriteLine();
                 Console.WriteLine("  TIME    ACTIVITY");
                 Console.WriteLine("  ------  --------------------------------------------");
@@ -1229,8 +1323,7 @@ namespace MyScheduler
                 {
                     int minute = h * 60;
                     string name = "";
-                    int startMin = 0;
-                    int endMin = 0;
+                    int startMin = 0, endMin = 0;
                     bool isAct = false;
 
                     for (int i = 0; i < schedCount; i++)
@@ -1260,10 +1353,7 @@ namespace MyScheduler
                         }
                     }
 
-                    if (name == "")
-                    {
-                        Console.WriteLine("  " + h.ToString("00") + ":00   free");
-                    }
+                    if (name == "") { Console.WriteLine("  " + h.ToString("00") + ":00   free"); }
                     else
                     {
                         string prefix = isAct ? "[ ] " : "";
@@ -1275,10 +1365,10 @@ namespace MyScheduler
 
                 Console.WriteLine();
                 Console.WriteLine("============================================================");
-                
+
                 int missedCount = 0;
                 string missedText = "";
-                
+
                 for (int i = 0; i < actCount; i++)
                 {
                     if (actDone[i]) continue;
@@ -1290,25 +1380,29 @@ namespace MyScheduler
                         missedCount++;
                         double shortfall = actHours[i] - placedHours[i, d];
                         missedText = missedText + "  " + missedCount + ". " + actName[i] + " [" + GetPriorityName(actPriority[i]) + "]\n";
-                        missedText = missedText + "     Needs " + actHours[i] + " hrs, but only got " + placedHours[i, d].ToString("0.0") + " hrs. (" + shortfall.ToString("0.0") + " hrs short)\n";
+                        missedText = missedText + "     Needs " + FormatDuration(actHours[i]) + ", but only got " + FormatDuration(placedHours[i, d]) + ". (" + FormatDuration(shortfall) + " short)\n";
                     }
                 }
 
                 if (missedCount > 0)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("  NOT SCHEDULED TODAY");
                     Console.WriteLine("============================================================");
+                    Console.ResetColor();
                     Console.Write(missedText);
                 }
                 else
                 {
+                    Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("  No activities were missed today.");
+                    Console.ResetColor();
                 }
 
                 Console.WriteLine("============================================================");
                 Console.WriteLine("  [B] Back");
                 Console.Write("  Choice: ");
-                
+
                 string choice = Console.ReadLine();
                 if (choice == null) choice = "";
                 if (choice.Trim().ToUpper() == "B" || choice.Trim() == "") viewing = false;
