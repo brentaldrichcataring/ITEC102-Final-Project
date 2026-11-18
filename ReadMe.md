@@ -36,9 +36,10 @@ MyScheduler is a C# console application that helps students and workers manage t
 1. Open your terminal or command prompt.
 2. Navigate to the folder containing `Program.cs`.
 3. Compile the application by typing:
-
+```
     dotnet build
-
+```
 4. Run the application by typing:
-
+```
     dotnet run
+```
