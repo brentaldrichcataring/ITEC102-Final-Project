@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.IO; // Used for saving and loading files
 
 namespace MyScheduler
 {
@@ -43,8 +44,14 @@ namespace MyScheduler
         static DateTime baseDate = DateTime.Today;
         static DateTime currentWeekStart = DateTime.Today;
 
+        // --- FILE PATHS FOR SAVING ---
+        static string schedFile = "schedules.txt";
+        static string actFile = "activities.txt";
+
         static void Main()
         {
+            LoadData(); // Load saved data at startup
+
             Console.Title = "MyScheduler";
 
             Console.Clear();
@@ -53,24 +60,10 @@ namespace MyScheduler
             Console.WriteLine("============================================================");
             Console.WriteLine();
             
-            while (true)
-            {
-                Console.Write("  Enter Current Date (YYYY-MM-DD): ");
-                string dateInput = Console.ReadLine();
-                
-                DateTime parsedDate;
-                if (DateTime.TryParse(dateInput, out parsedDate))
-                {
-                    baseDate = parsedDate.Date;
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine("  !! Invalid date format. Please try again.");
-                }
-            }
-
-            // Automatically find the Monday of the inputted week
+            // Automatically detect today's real date
+            baseDate = DateTime.Today;
+            
+            // Automatically find the Monday of the current week
             int dayOfWeek = GetDayNumber(baseDate);
             currentWeekStart = baseDate.AddDays(-(dayOfWeek - 1));
 
@@ -102,15 +95,31 @@ namespace MyScheduler
                 Console.Write("  Select option [0-5]: ");
 
                 string choice = Console.ReadLine();
-                if (choice == "1") AddFixedSchedule();
-                else if (choice == "2") ViewFixedSchedules();
-                else if (choice == "3") AddActivity();
-                else if (choice == "4") ViewActivities();
-                else if (choice == "5") ViewCalendar();
-                else if (choice == "0") running = false;
-                else
+                if (choice == null) choice = ""; 
+                choice = choice.Trim();
+
+                // Try-Catch prevents the app from closing if the user types a wrong key
+                try
                 {
-                    Console.WriteLine("  !! Invalid option. Please choose 0-5.");
+                    if (choice == "1") AddFixedSchedule();
+                    else if (choice == "2") ViewFixedSchedules();
+                    else if (choice == "3") AddActivity();
+                    else if (choice == "4") ViewActivities();
+                    else if (choice == "5") ViewCalendar();
+                    else if (choice == "0") 
+                    {
+                        SaveData(); // Save before exiting
+                        running = false;
+                    }
+                    else
+                    {
+                        Console.WriteLine("  !! Invalid option. Please choose 0-5.");
+                        Pause();
+                    }
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("  !! An unexpected error occurred. Returning to main menu.");
                     Pause();
                 }
             }
@@ -120,6 +129,71 @@ namespace MyScheduler
         {
             Console.WriteLine("  Press ENTER to continue . . .");
             Console.ReadLine();
+        }
+
+        // =========================================================
+        //  SAVE & LOAD METHODS
+        // =========================================================
+        static void SaveData()
+        {
+            using (StreamWriter sw = new StreamWriter(schedFile))
+            {
+                for (int i = 0; i < schedCount; i++)
+                {
+                    sw.WriteLine(schedName[i] + "|" + schedDay[i] + "|" + schedStart[i] + "|" + schedEnd[i]);
+                }
+            }
+
+            using (StreamWriter sw = new StreamWriter(actFile))
+            {
+                for (int i = 0; i < actCount; i++)
+                {
+                    string daysStr = "";
+                    for (int d = 1; d <= 7; d++) { daysStr += actDays[i, d] ? "1" : "0"; }
+                    sw.WriteLine(actName[i] + "|" + actHasDeadline[i] + "|" + actDeadline[i].Ticks + "|" + daysStr + "|" + actHours[i] + "|" + actPriority[i] + "|" + actDone[i]);
+                }
+            }
+        }
+
+        static void LoadData()
+        {
+            if (File.Exists(schedFile))
+            {
+                string[] lines = File.ReadAllLines(schedFile);
+                foreach (string line in lines)
+                {
+                    string[] parts = line.Split('|');
+                    if (parts.Length == 4 && schedCount < MAX_RECORDS)
+                    {
+                        schedName[schedCount] = parts[0];
+                        schedDay[schedCount] = int.Parse(parts[1]);
+                        schedStart[schedCount] = int.Parse(parts[2]);
+                        schedEnd[schedCount] = int.Parse(parts[3]);
+                        schedCount++;
+                    }
+                }
+            }
+
+            if (File.Exists(actFile))
+            {
+                string[] lines = File.ReadAllLines(actFile);
+                foreach (string line in lines)
+                {
+                    string[] parts = line.Split('|');
+                    if (parts.Length == 7 && actCount < MAX_RECORDS)
+                    {
+                        actName[actCount] = parts[0];
+                        actHasDeadline[actCount] = bool.Parse(parts[1]);
+                        actDeadline[actCount] = new DateTime(long.Parse(parts[2]));
+                        string daysStr = parts[3];
+                        for (int d = 1; d <= 7; d++) { actDays[actCount, d] = daysStr[d - 1] == '1'; }
+                        actHours[actCount] = double.Parse(parts[4]);
+                        actPriority[actCount] = int.Parse(parts[5]);
+                        actDone[actCount] = bool.Parse(parts[6]);
+                        actCount++;
+                    }
+                }
+            }
         }
 
         // =========================================================
@@ -454,6 +528,8 @@ namespace MyScheduler
                 schedCount++;
             }
 
+            SaveData(); // Save data after adding
+
             Console.WriteLine();
             Console.WriteLine("  >> Successfully added " + name);
             Pause();
@@ -518,6 +594,7 @@ namespace MyScheduler
                             schedEnd[i] = schedEnd[i + 1];
                         }
                         schedCount--;
+                        SaveData(); // Save data after deleting
                         Console.WriteLine("  >> Deleted successfully.");
                     }
                     else { Console.WriteLine("  !! Invalid number."); }
@@ -680,6 +757,8 @@ namespace MyScheduler
             actDone[actCount] = false;
             actCount++;
 
+            SaveData(); // Save data after adding activity
+
             Console.WriteLine();
             Console.WriteLine("  >> Successfully added " + name);
             Pause();
@@ -735,6 +814,7 @@ namespace MyScheduler
                     if (int.TryParse(numStr, out num) && num >= 1 && num <= actCount)
                     {
                         actDone[num - 1] = !actDone[num - 1];
+                        SaveData(); // Save data after toggle
                         Console.WriteLine("  >> Updated status.");
                     }
                     else Console.WriteLine("  !! Invalid number.");
@@ -761,6 +841,7 @@ namespace MyScheduler
                             actDone[i] = actDone[i + 1];
                         }
                         actCount--;
+                        SaveData(); // Save data after delete
                         Console.WriteLine("  >> Deleted successfully.");
                     }
                     else Console.WriteLine("  !! Invalid number.");
