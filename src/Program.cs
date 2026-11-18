@@ -42,7 +42,8 @@ namespace MyScheduler
 
         // --- TIME DATA ---
         static DateTime baseDate = DateTime.Today;
-        static DateTime currentWeekStart = DateTime.Today;
+        // *** THIS IS THE FIXED LINE FOR PROBLEM 1 (CALENDAR STARTS ON MONDAY) ***
+        static DateTime currentWeekStart = DateTime.Today.AddDays(-(GetDayNumber(DateTime.Today) - 1));
 
         // --- FILE PATHS ---
         static string schedFile = "schedules.txt";
